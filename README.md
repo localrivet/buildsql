@@ -120,7 +120,7 @@ Assume the filter is always an "AND"
 check the allowedFields for the fieldnames
 return an error if a unknown fieldname
 
-In both AllowedFilterFields and AllowedSortFields
+In both `AllowedFilterFields` and `AllowedSortFields`
 the map[string]string maps to:
 
 ```
