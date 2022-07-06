@@ -93,9 +93,9 @@ _Protip: the '-' sign prefixing the 'id' field indicates a DESC, no prefix indic
 _Example_: u-firstName-bob
 
 ```
-u-firstName-bob =		     u      		-      	firstName       -			bob
-					|				|			|			|			 |
- 		table prefix	      hyphen    fieldName	  hyphen	 field value
+u-firstName-bob = u      		-      	firstName       -			bob
+        |				|			|			|			 |
+        table prefix	      hyphen    fieldName	  hyphen	 field value
 ```
 
 **sortOn**: field format is: 'optional ASC/DESC prefix' 'table prefix' 'hyphen' 'fieldname'
