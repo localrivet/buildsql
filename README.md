@@ -6,7 +6,7 @@ Dynamically generates `WHERE`, `ORDER BY` AND `NAMED PARAMETER MAP` for queries 
 
 ```go
 type getAllCustomersResponse struct {
-	PagingStats types.PagingStats `json:"stats"`
+	PagingStats PagingStats `json:"stats"`
 	Results     []models.Customer `json:"results"`
 }
 
@@ -81,14 +81,6 @@ func (m *customerRepo) GetAllCustomers(currentPage, pageSize int64, filter strin
 
 	return out, err
 }
-```
-
-```go
-package types
-
-import (
-	"math"
-)
 
 type PagingStats struct {
 	TotalRecords int64 `db:"total_records" json:"total_records"`
