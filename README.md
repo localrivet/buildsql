@@ -94,8 +94,8 @@ _Example_: u-firstName-bob
 
 ```
 u-firstName-bob = u      		-      	firstName       -			bob
-        |				|			|			|			 |
-        table prefix	      hyphen    fieldName	  hyphen	 field value
+                |				|			|			|			 |
+                table prefix	      hyphen    fieldName	  hyphen	 field value
 ```
 
 **sortOn**: field format is: 'optional ASC/DESC prefix' 'table prefix' 'hyphen' 'fieldname'
