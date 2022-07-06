@@ -5,11 +5,6 @@ Dynamically generates `WHERE`, `ORDER BY` AND `NAMED PARAMETER MAP` for queries 
 ### Example
 
 ```go
-type getAllCustomersResponse struct {
-	PagingStats PagingStats `json:"stats"`
-	Results     []models.Customer `json:"results"`
-}
-
 func (m *customerRepo) GetAllCustomers(currentPage, pageSize int64, filter string) (res *getAllCustomersResponse, err error) {
 	var builder = buildsql.NewQueryBuilder()
 	where, orderBy, namedParamMap, err := builder.Build(filter, map[string]interface{}{
@@ -80,6 +75,11 @@ func (m *customerRepo) GetAllCustomers(currentPage, pageSize int64, filter strin
 	}
 
 	return out, err
+}
+
+type getAllCustomersResponse struct {
+	PagingStats PagingStats `json:"stats"`
+	Results     []models.Customer `json:"results"`
 }
 
 type PagingStats struct {
