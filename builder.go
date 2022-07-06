@@ -143,9 +143,9 @@ func (b *QueryBuilder) ParseParamString(paramString string) error {
 			filter = strings.TrimSpace(filter)
 			parts := strings.Split(filter, Delimiter)
 
-			if len(parts) < 3 {
-				return nil
-				// return fmt.Errorf("filter: %s has too few params", filter)
+			if len(parts) < 4 {
+				// return nil
+				return fmt.Errorf("filter: %s has too few params", filter)
 			}
 
 			// we don't care if the parts len is longer,
@@ -153,7 +153,6 @@ func (b *QueryBuilder) ParseParamString(paramString string) error {
 			// so we'll keep every remaining after the second hyphen
 			// this works well for sku numbers with hyphens
 			val := strings.SplitAfterN(filter, Delimiter, 4)
-			fmt.Println("VALUE:", val)
 			value := val[3]
 			if Operator(parts[2]).isLike() {
 				value = "%" + val[3] + "%"

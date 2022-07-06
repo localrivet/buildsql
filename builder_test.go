@@ -67,9 +67,10 @@ var _ = Describe("Helpers", func() {
 
 		It("should correctly parse a param string", func() {
 
-			on := "filter=p-name-Practical Cotton Gloves&filter=v-sku-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
+			on := "filter=p-name-eq-Practical Cotton Gloves&filter=v-sku-eq-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
 
 			err := builder.ParseParamString(on)
+			fmt.Println("ERROR:", err)
 			expectNilErr(err)
 
 			Expect(len(builder.Filters)).To(Equal(2))
@@ -91,7 +92,7 @@ var _ = Describe("Helpers", func() {
 
 		It("should error on parsing an invalid param string", func() {
 
-			on := "filter=c_name_Practical Cotton Gloves&filter=v_sku_practical-cotton-gloves&sortOn=p_name&sortOn=-pr_amount"
+			on := "filter=c_name-Practical Cotton Gloves&filter=v-sku_practical-cotton-gloves&sortOn=p_name&sortOn=-pr_amount"
 
 			err := builder.ParseParamString(on)
 			expectErr(err)
@@ -108,19 +109,13 @@ var _ = Describe("Helpers", func() {
 			fmt.Println("where:", where)
 			fmt.Println("namedParamMap:", namedParamMap)
 			fmt.Println("orderBy:", orderBy)
-			// Expect(len(builder.Filters)).To(Equal(2))
-
-			// Expect(addItemToCartLogic).To(Not(BeNil()))
-
-			// where, err := buildsql.BuildWhere(on)
 			expectNilErr(err)
-			// fmt.Println("where:", where)
+
 		})
 
 		It("should parse raw url ", func() {
 
-			// on := "/v1/products/0/20?filter=p-name-like-practical&sortOn=p-id"
-			on := "http://api.local.k8sly.com:8888/v1/products/0/20?filter=p-name-like-cotton&sortOn=p-id"
+			on := "http://example.com/v1/products/0/20?filter=p-name-like-cotton&sortOn=p-id"
 
 			on = strings.Replace(on, "\\u0026", "&", -1)
 
@@ -138,13 +133,7 @@ var _ = Describe("Helpers", func() {
 			fmt.Println("where:", where)
 			fmt.Println("namedParamMap:", namedParamMap)
 			fmt.Println("orderBy:", orderBy)
-			// Expect(len(builder.Filters)).To(Equal(2))
-
-			// Expect(addItemToCartLogic).To(Not(BeNil()))
-
-			// where, err := buildsql.BuildWhere(on)
 			expectNilErr(err)
-			// fmt.Println("where:", where)
 		})
 	})
 })
