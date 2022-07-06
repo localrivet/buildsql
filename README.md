@@ -93,20 +93,24 @@ _Protip: the '-' sign prefixing the 'id' field indicates a DESC, no prefix indic
 _Example_: u-firstName-bob
 
 ```
-u-firstName-bob = u      		-      	firstName       -			bob
-                |				|			|			|			 |
-                table prefix	      hyphen    fieldName	  hyphen	 field value
+u-firstName-bob
 ```
+
+| u            | -      | firstName | -      | bob         |
+| ------------ | ------ | --------- | ------ | ----------- |
+| table prefix | hyphen | fieldName | hyphen | field value |
 
 **sortOn**: field format is: 'optional ASC/DESC prefix' 'table prefix' 'hyphen' 'fieldname'
 
 _Example_: u-firstName-bob
 
 ```
--u-id =		 			    - 						u      		-      		   id
-						 	|						|			|				|
- 			    optional ASC/DESC prefix		table prefix  hyphen	    fieldName
+-u-id
 ```
+
+| -                        | u            | -      | id          |
+| ------------------------ | ------------ | ------ | ----------- |
+| optional ASC/DESC prefix | table prefix | hyphen | field value |
 
 **Filter**: firstName = 'bob' AND lastName = 'philips' ORDER BY 'id' DESC
 
@@ -120,19 +124,11 @@ In both AllowedFilterFields and AllowedSortFields
 the map[string]string maps to:
 
 ```
-map     [string]		 string
-		  |                 |
-     fieldName          table alias
-```
-
-Example:
-
-```
 map[string]string{
 		"id":     "p",  // product alias
 		"name":   "p",  // product alias
 		"slug":   "p",  // product alias
-		"sku":    "v",  // product alias
+		"sku":    "v",  // variant alias
 		"amount": "pr", // price alias
 	}
 ```
