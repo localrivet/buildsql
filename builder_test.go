@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strings"
 
-	"gihub.com/localrivet/buildsql"
+	"gihtub.com/localrivet/buildsql"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )

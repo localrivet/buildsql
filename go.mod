@@ -1,4 +1,4 @@
-module gihub.com/localrivet/buildsql
+module github.com/localrivet/buildsql
 
 go 1.18
 
