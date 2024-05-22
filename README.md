@@ -1,6 +1,223 @@
-# Build SQL
+# QueryBuilder
 
-Dynamically generates `WHERE`, `ORDER BY` AND `NAMED PARAMETER MAP` for queries using the `sqlx` package. Supports both postgres and mysql.
+`QueryBuilder` is a Go package that provides a flexible and intuitive way to build query strings with filters and sorts. It uses a builder pattern to incrementally construct the query string, ensuring it is correctly formatted and ready to use in HTTP requests.
+
+## Installation
+
+To use `QueryBuilder`, you need to have Go installed on your machine. You can install the package using `go get`:
+
+```sh
+go get github.com/localrivet/buildsql
+```
+
+## Usage
+
+### Creating a New QueryBuilder
+
+To start building a query string, create a new instance of `QueryBuilder`:
+
+```go
+qb := buildsql.NewQueryBuilder()
+```
+
+### Adding Filters
+
+Filters are added using the `AddFilter` method. The method takes four parameters:
+- `prefix`: The table prefix.
+- `fieldName`: The name of the field to filter on.
+- `operator`: The operator to use for filtering (e.g., `eq` for equal, `lt` for less than, etc.).
+- `value`: The value to filter by.
+
+Example:
+
+```go
+qb.AddFilter("r", "user_id", buildsql.Equal, "u7fb0d70550c849")
+qb.AddFilter("r", "account_id", buildsql.Equal, "a7fb0d70550c849")
+```
+
+### Adding Sorts
+
+Sorts are added using the `AddSort` method. The method takes three parameters:
+- `prefix`: The table prefix.
+- `fieldName`: The name of the field to sort on.
+- `direction`: The sort direction (`-` for descending, empty for ascending).
+
+Example:
+
+```go
+qb.AddSort("r", "created_at", "")
+qb.AddSort("r", "created_at", "-")
+```
+
+### Building the Query String
+
+Once all filters and sorts have been added, call the `Build` method to construct the final query string:
+
+```go
+queryString, err := qb.Build()
+if err != nil {
+    fmt.Println("Error:", err)
+    return
+}
+
+fmt.Println("Query String:", queryString)
+```
+
+### Full Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"buildsql"
+)
+
+func main() {
+	qb := buildsql.NewQueryBuilder()
+	qb.AddFilter("r", "user_id", buildsql.Equal, "u7fb0d70550c849")
+	qb.AddFilter("r", "account_id", buildsql.Equal, "a7fb0d70550c849")
+	qb.AddSort("r", "created_at", "")
+	qb.AddSort("r", "created_at", "-")
+
+	queryString, err := qb.Build()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Println("Query String:", queryString)
+}
+```
+
+### Output
+
+When you run the above code, the output will be:
+
+```
+Query String: filter=r-user_id-eq-u7fb0d70550c849&filter=r-account_id-eq-a7fb0d70550c849&sortOn=r-created_at&sortOn=-r-created_at
+```
+
+## Query String Format
+
+### Filters
+
+Filters follow the format: `table prefix` `-` `field name` `-` `operator` `-` `field value`.
+
+Example:
+```
+filter=r-user_id-eq-u7fb0d70550c849
+```
+- `r`: Table prefix.
+- `user_id`: Field name.
+- `eq`: Operator (equal).
+- `u7fb0d70550c849`: Field value.
+
+### Sorts
+
+Sorts follow the format: `optional ASC/DESC prefix` `table prefix` `-` `field name`.
+
+Example:
+```
+sortOn=-r-created_at
+```
+- `-`: DESC prefix (optional).
+- `r`: Table prefix.
+- `created_at`: Field name.
+
+## Sample Query String
+
+A complete query string with multiple filters and sorts:
+
+```
+https://example.org/?filter=r-user_id-eq-u7fb0d70550c849&filter=r-account_id-eq-a7fb0d70550c849&sortOn=r-created_at&sortOn=-r-created_at
+```
+
+## Protips
+
+- The `-` sign prefixing a field in the `sortOn` parameter indicates a DESC sort order. No prefix indicates an ASC sort order.
+- Filters are always combined using an `AND` operator.
+
+## Operator Type and Constants
+
+### Operator Type
+
+The `Operator` type defines constants for various operators used in filters.
+
+```go
+package buildsql
+
+type Operator string
+
+const (
+	Equal              Operator = "eq"
+	NotEqual           Operator = "neq"
+	Like               Operator = "like"
+	ILike              Operator = "ilike"
+	OrLike             Operator = "orlike"
+	OrILike            Operator = "orilike"
+	NotLike            Operator = "nlike"
+	NotILike           Operator = "nilike"
+	LessThan           Operator = "lt"
+	LessThanOrEqual    Operator = "lte"
+	GreaterThan        Operator = "gt"
+	GreaterThanOrEqual Operator = "gte"
+	Between            Operator = "btw"
+	Or                 Operator = "or"
+	In                 Operator = "in"
+	NotIn              Operator = "notin"
+	IsNull             Operator = "isnull"
+	IsNotNull          Operator = "isnotnull"
+)
+
+func (o Operator) Convert() string {
+	switch o {
+	case Equal:
+		return "="
+	case NotEqual:
+		return "!="
+	case Like:
+		return "LIKE"
+	case ILike:
+		return "ILIKE"
+	case OrLike:
+		return "LIKE"
+	case OrILike:
+		return "ILIKE"
+	case NotLike:
+		return "NOT LIKE"
+	case NotILike:
+		return "NOT ILIKE"
+	case LessThan:
+		return "<"
+	case LessThanOrEqual:
+		return "<="
+	case GreaterThan:
+		return ">"
+	case GreaterThanOrEqual:
+		return ">="
+	case Between:
+		return "BETWEEN"
+	case In:
+		return "IN"
+	case NotIn:
+		return "NOT IN"
+	case IsNull:
+		return "IS NULL"
+	case IsNotNull:
+		return "IS NOT NULL"
+	}
+	return ""
+}
+
+func (o Operator) isLike() bool {
+	return o == Like || o == OrLike || o == ILike || o == OrILike || o == NotLike || o == NotILike
+}
+```
+
+## How It Works
+
+Dynamically generates `WHERE`, `ORDER BY` AND `NAMED PARAMETER MAP` for queries using the `sqlx` package. Supports both Postgres and MySQL.
 
 ### Example
 
@@ -39,11 +256,6 @@ func (m *customerRepo) GetAllCustomers(currentPage, pageSize int64, filter strin
 		%s
 	`, where, orderBy, limit)
 
-	// fmt.Println("sql:", sql)
-	// fmt.Println("where:", where)
-	// fmt.Println("order by:", orderBy)
-	// fmt.Println("limit:", limit)
-
 	nstmt, err := m.db.PrepareNamed(sql)
 	if err != nil {
 		return nil, fmt.Errorf("error::GetAllCustomers::%s", err.Error())
@@ -78,7 +290,7 @@ func (m *customerRepo) GetAllCustomers(currentPage, pageSize int64, filter strin
 }
 
 type getAllCustomersResponse struct {
-	PagingStats PagingStats `json:"stats"`
+	PagingStats types.PagingStats `json:"stats"`
 	Results     []models.Customer `json:"results"`
 }
 
@@ -94,47 +306,46 @@ func (s *PagingStats) Calc(pageSize int64) *PagingStats {
 }
 ```
 
-### How It Works
+### Sample Query String Formats
 
-Sample query string formats
-Delimiter is hyphen: http://www.blooberry.com/indexdot/html/topics/urlencoding.htm
+Delimiter is hyphen: [http://www.blooberry.com/indexdot/html/topics/urlencoding.htm](http://www.blooberry
+
+.com/indexdot/html/topics/urlencoding.htm)
 
 **Filter**: firstName = 'bob' ORDER BY 'id' DESC  
 _Protip: the '-' sign prefixing the 'id' field indicates a DESC, no prefix indicates an ASC_
 
-`https://example.org/?filter=u-firstName-bob&sortOn=-u-id`
+`https://example.org/?filter=u-firstName-eq-bob&sortOn=-u-id`
 
-**filter**: field format is: 'table prefix' 'hyphen' 'fieldname' 'hyphen' 'field value'
+**filter**: field format is: 'table prefix' 'hyphen' 'fieldname' 'hyphen' 'operator' 'hyphen' 'field value'
 
-_Example_: u-firstName-bob
+_Example_: u-firstName-eq-bob
 
 ```
-u-firstName-bob
+u-firstName-eq-bob
 ```
-
-| u            | -      | firstName | -      | bob         |
-| ------------ | ------ | --------- | ------ | ----------- |
-| table prefix | hyphen | fieldName | hyphen | field value |
+| u            | -      | firstName | -      | eq   | -      | bob         |
+| ------------ | ------ | --------- | ------ | ---- | ------ | ----------- |
+| table prefix | hyphen | fieldName | hyphen | op   | hyphen | field value |
 
 **sortOn**: field format is: 'optional ASC/DESC prefix' 'table prefix' 'hyphen' 'fieldname'
 
-_Example_: u-firstName-bob
+_Example_: -u-id
 
 ```
 -u-id
 ```
-
 | -                        | u            | -      | id          |
 | ------------------------ | ------------ | ------ | ----------- |
 | optional ASC/DESC prefix | table prefix | hyphen | field value |
 
 **Filter**: firstName = 'bob' AND lastName = 'philips' ORDER BY 'id' DESC
 
-`https://example.org/?filter=u-firstName-bob&filter=u-lastName-philips&sortOn=u-lastName&sortOn=-u-firstName`
+`https://example.org/?filter=u-firstName-eq-bob&filter=u-lastName-eq-philips&sortOn=u-id&sortOn=-u-firstName`
 
 Assume the filter is always an "AND"
 check the allowedFields for the fieldnames
-return an error if a unknown fieldname
+return an error if an unknown fieldname
 
 In both `AllowedFilterFields` and `AllowedSortFields`
 the map[string]string maps to:
@@ -148,3 +359,11 @@ map[string]string{
 		"amount": "pr", // price alias
 	}
 ```
+
+## License
+
+This project is licensed under the MIT License.
+
+## Author
+
+This package is managed by localrivet and is expressly authorized for use without limitation.

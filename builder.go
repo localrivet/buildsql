@@ -1,3 +1,5 @@
+// This is from the open source package K8sCommerce managed by Alma Tuck
+// It is expressly authorized to be used within this software without limitation
 package buildsql
 
 import (
@@ -7,48 +9,46 @@ import (
 	"strings"
 )
 
+//
 // Sample query string formats
 // Delimiter is hyphen: http://www.blooberry.com/indexdot/html/topics/urlencoding.htm
-
+//
 // Filter: firstName = 'bob' ORDER BY 'id' DESC
 // Protip: the '-' sign prefixing the 'id' field indicates a DESC
 // no prefix indicates an ASC
-
-// https://example.org/?filter=u-firstName-bob&sortOn=-u-id
-
-// filter: field format is: 'table prefix' 'hyphen' 'fieldname' 'hyphen' 'field value'
-// Example: u-firstName-bob
-// u-firstName-bob =		 u      		-      	firstName       -			bob
-// 						 	 |				|			|			|			 |
-//  					table prefix	hyphen  fieldName	hyphen	 field value
-
+//
+// https://example.org/?filter=u-firstName-eq-bob&sortOn=-u-id
+//
+// filter: field format is: 'table prefix' 'hyphen' 'fieldname' 'hyphen' 'operator' 'hyphen' 'field value'
+// Example: u-firstName-eq-bob
+// u-firstName-eq-bob =		 u      		-      	firstName       -		  eq       -		  bob
+// 						 	 |				|			|			   |          |         |
+//  					table prefix	 hyphen    fieldName		hyphen	 operator	 hyphen	  field value
+//
+//
 // sortOn: field format is: 'optional ASC/DESC prefix' 'table prefix' 'hyphen' 'fieldname'
-// Example: u-firstName-bob
+// Example: -u-id
 // -u-id =		 			- 						u      		-      		   id
 // 						 	|						|			|				|
 //  			optional ASC/DESC prefix		table prefix  hyphen	fieldName
-
+//
+//
+//
 // Filter: firstName = 'bob' AND lastName = 'philips' ORDER BY 'id' DESC
-// https://example.org/?filter=u-firstName-bob&filter=u-lastName-philips&sortOn=u-lastName&sortOn=-u-firstName
-
+// https://example.org/?filter=u-firstName-eq-bob&filter=u-lastName-eq-philips&sortOn=u-lastName&sortOn=-u-firstName
+//
 // Assume the filter is always an "AND"
 // check the allowedFields for the fieldnames
-// return an error if a unknown fieldname
-
-// In both AllowedFilterFields and AllowedSortFields
-// the map[string]string maps to:
-// map [string]		 string
-// 		  |            |
-//    fieldName   table alias
-
-// Example:
+// return an error if an unknown fieldname
+//
+// Example of how allowed fields maps work:
 // map[string]string{
-// 		"id":     "p",  // product alias
-// 		"name":   "p",  // product alias
-// 		"slug":   "p",  // product alias
-// 		"sku":    "v",  // product alias
-// 		"amount": "pr", // price alias
-// 	}
+//		"id":     "p",  // product alias
+//		"name":   "p",  // product alias
+//		"slug":   "p",  // product alias
+//		"sku":    "v",  // product alias
+//		"amount": "pr", // price alias
+//	}
 
 var Delimiter string = "-"
 
@@ -76,6 +76,7 @@ type Where struct {
 	CombinedName string
 	SqlString    string
 	Named        string
+	Operator     Operator
 }
 
 func NewQueryBuilder() QueryBuilder {
@@ -93,17 +94,18 @@ type QueryBuilder struct {
 // AllowedFiltersFieldsFromMap
 // resets AllowedFilterFields
 // example:
-// map[string]string{
-//		"id":     "p",  // product alias
-//		"name":   "p",  // product alias
-//		"slug":   "p",  // product alias
-//		"sku":    "v",  // product alias
-//		"amount": "pr", // price alias
+//
+//	map[string]string{
+//			"id":     "p",  // product alias
+//			"name":   "p",  // product alias
+//			"slug":   "p",  // product alias
+//			"sku":    "v",  // product alias
+//			"amount": "pr", // price alias
+//		}
+//
+//	func (b *QueryBuilder) AllowedFiltersFieldsFromStringMap(allowed map[string]string) {
+//		b.AllowedFilterFields = allowed
 //	}
-// func (b *QueryBuilder) AllowedFiltersFieldsFromStringMap(allowed map[string]string) {
-// 	b.AllowedFilterFields = allowed
-// }
-
 func (b *QueryBuilder) ParseParamString(paramString string) error {
 	if paramString == "" {
 		paramString = "?"
@@ -138,35 +140,50 @@ func (b *QueryBuilder) ParseParamString(paramString string) error {
 
 	// parse filters
 	if filters, ok := q["filter"]; ok {
-		count := 0
+		var count int // Initialize count
 		for _, filter := range filters {
 			filter = strings.TrimSpace(filter)
-			parts := strings.Split(filter, Delimiter)
+			parts := strings.SplitN(filter, Delimiter, 4)
 
-			if len(parts) < 4 {
-				// return nil
+			if len(parts) < 3 {
 				return fmt.Errorf("filter: %s has too few params", filter)
 			}
 
-			// we don't care if the parts len is longer,
-			// it could mean the filter content has a hyphen
-			// so we'll keep every remaining after the second hyphen
-			// this works well for sku numbers with hyphens
-			val := strings.SplitAfterN(filter, Delimiter, 4)
-			value := val[3]
-			if Operator(parts[2]).isLike() {
-				value = "%" + val[3] + "%"
+			var filterField FilterField
+			filterField.TableAlias = parts[0]
+			filterField.FieldName = parts[1]
+
+			// Handling different operator scenarios
+			operatorPart := parts[2]
+			var valuePart string
+			if len(parts) > 3 {
+				// Assuming the operator is one of eq, lt, gt, etc., and the next part is the value
+				filterField.Operator = Operator(operatorPart)
+				valuePart = parts[3]
+			} else {
+				// Handling scenarios where the operator might include the value (e.g., isnull, isnotnull)
+				if operatorPart == "isnull" || operatorPart == "isnotnull" {
+					filterField.Operator = Operator(operatorPart)
+				} else {
+					// Splitting the operator and the value
+					opAndValue := strings.SplitN(operatorPart, "-", 2)
+					if len(opAndValue) != 2 {
+						return fmt.Errorf("invalid operator and value combination: %s", operatorPart)
+					}
+					filterField.Operator = Operator(opAndValue[0])
+					valuePart = opAndValue[1]
+				}
 			}
 
-			filterField := FilterField{
-				TableAlias: parts[0],
-				FieldName:  parts[1],
-				Operator:   Operator(parts[2]),
-				Value:      value,
-				Values:     parts[3:],
+			// Assigning the value
+			if filterField.Operator.IsLike() {
+				filterField.Value = "%" + valuePart + "%"
+			} else {
+				filterField.Value = valuePart
 			}
-			b.SearchTables[filterField.TableAlias] = count + 1
+
 			b.Filters = append(b.Filters, filterField)
+			b.SearchTables[filterField.TableAlias] = count + 1
 		}
 	}
 
@@ -230,16 +247,6 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 	}
 
 	for tableAlias, tableStruct := range allowed {
-		// let's not bother with the table unless we're actually referencing it
-		// let's also keep track of how many fields we have yet to match
-		// we created a count in the b.SearchTables[tableAlias] map
-		// when we hit zero we'll move on to the next table instead
-		// of continuing out looping
-		// remainingFields, ok := b.SearchTables[tableAlias]
-		// if !ok {
-		// 	continue
-		// }
-
 		rv := reflect.ValueOf(tableStruct)
 		for i := 0; i < rv.NumField(); i++ {
 			tag := rv.Type().Field(i).Tag.Get("db")
@@ -251,20 +258,45 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 			if ok {
 				for i, field := range fields {
 					if field.TableAlias == tableAlias {
-						if field.Operator == Betweeen && len(field.Values) == 2 {
-							namedParam0 := fmt.Sprintf("filter_%s_%s_%d_0", field.TableAlias, field.FieldName, i)
-							namedParamMap[namedParam0] = field.Values[0]
-							namedParam1 := fmt.Sprintf("filter_%s_%s_%d_1", field.TableAlias, field.FieldName, i)
-							namedParamMap[namedParam1] = field.Values[1]
-							sqlString := fmt.Sprintf("%s.%s %s :%s AND :%s", field.TableAlias, field.FieldName, field.Operator.Convert(), namedParam0, namedParam1)
+						switch field.Operator {
+						case Between:
+							if len(field.Values) == 2 {
+								namedParam0 := fmt.Sprintf("filter_%s_%s_%d_0", field.TableAlias, field.FieldName, i)
+								namedParamMap[namedParam0] = field.Values[0]
+								namedParam1 := fmt.Sprintf("filter_%s_%s_%d_1", field.TableAlias, field.FieldName, i)
+								namedParamMap[namedParam1] = field.Values[1]
+								sqlString := fmt.Sprintf("%s.%s %s :%s AND :%s", field.TableAlias, field.FieldName, field.Operator.Convert(), namedParam0, namedParam1)
+								combined := fmt.Sprintf("%s.%s", tableAlias, field.FieldName)
+								wheres[combined] = append(wheres[combined], Where{
+									CombinedName: combined,
+									SqlString:    sqlString,
+									Named:        namedParam0,
+								})
+							}
+
+						case In, NotIn:
+							var placeholders []string
+							for j, val := range field.Values {
+								namedParam := fmt.Sprintf("filter_%s_%s_%d_%d", field.TableAlias, field.FieldName, i, j)
+								namedParamMap[namedParam] = val
+								placeholders = append(placeholders, ":"+namedParam)
+							}
+							sqlString := fmt.Sprintf("%s.%s %s (%s)", field.TableAlias, field.FieldName, field.Operator.Convert(), strings.Join(placeholders, ", "))
 							combined := fmt.Sprintf("%s.%s", tableAlias, field.FieldName)
 							wheres[combined] = append(wheres[combined], Where{
 								CombinedName: combined,
 								SqlString:    sqlString,
-								Named:        namedParam0,
 							})
-						} else {
-							// we use named pairs here with sqlx
+
+						case IsNull, IsNotNull:
+							sqlString := fmt.Sprintf("%s.%s %s", field.TableAlias, field.FieldName, field.Operator.Convert())
+							combined := fmt.Sprintf("%s.%s", tableAlias, field.FieldName)
+							wheres[combined] = append(wheres[combined], Where{
+								CombinedName: combined,
+								SqlString:    sqlString,
+							})
+
+						default:
 							namedParam := fmt.Sprintf("filter_%s_%s_%d", field.TableAlias, field.FieldName, i)
 							namedParamMap[namedParam] = field.Value
 							sqlString := fmt.Sprintf("%s.%s %s :%s", field.TableAlias, field.FieldName, field.Operator.Convert(), namedParam)
@@ -273,6 +305,7 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 								CombinedName: combined,
 								SqlString:    sqlString,
 								Named:        namedParam,
+								Operator:     field.Operator,
 							})
 						}
 					}
@@ -291,7 +324,6 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 	}
 
 	where = b.AssembledWheres(wheres)
-	// orderBy = fmt.Sprintf("ORDER BY %s", strings.Join(sb, ", "))
 	orderBy = strings.Join(sb, ", ")
 	if orderBy != "" {
 		orderBy = fmt.Sprintf("ORDER BY %s", orderBy)
@@ -302,6 +334,7 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 
 func (b *QueryBuilder) AssembledWheres(whereMap map[string][]Where) string {
 	where := []string{}
+	orWhere := []string{}
 	for _, ws := range whereMap {
 		if len(ws) > 1 {
 			orGroup := []string{}
@@ -310,11 +343,20 @@ func (b *QueryBuilder) AssembledWheres(whereMap map[string][]Where) string {
 			}
 			where = append(where, "("+strings.Join(orGroup, " OR ")+")")
 		} else {
-			where = append(where, ws[0].SqlString)
+
+			// fmt.Println("ws", ws[0])
+			if ws[0].Operator == Or || ws[0].Operator == OrLike {
+				orWhere = append(orWhere, ws[0].SqlString)
+			} else {
+				where = append(where, ws[0].SqlString)
+			}
 		}
 	}
 
 	out := strings.Join(where, " AND ")
+	if len(orWhere) > 0 {
+		out = out + "(" + strings.Join(orWhere, " OR ") + ")"
+	}
 	if out != "" {
 		return fmt.Sprintf(" AND %s", out)
 	}
@@ -367,36 +409,3 @@ func BuildOrderBy(on string, allowedFields map[string]string) (orderBy string, e
 
 	return orderBy, err
 }
-
-// func getWhere(table string, whereMap map[string]interface{}, orderByMap map[string]interface{}, out interface{}) error {
-// 	var where []string
-// 	for item, _ := range whereMap {
-// 		where = append(where, fmt.Sprintf("%s = :%s", item, item))
-// 	}
-
-// 	var orderBy []string
-// 	if len(orderByMap) > 0 {
-// 		orderBy = append(orderBy, "ORDER BY 1")
-// 	}
-// 	for item, direction := range orderByMap {
-// 		orderBy = append(orderBy, fmt.Sprintf("%s %s", item, direction))
-// 	}
-
-// 	query := fmt.Sprintf(`
-// 			SELECT * FROM %s
-// 			WHERE %s
-// 			%s
-// 		`,
-// 		table,
-// 		strings.Join(where, " AND "),
-// 		strings.Join(orderBy, ", "))
-
-// 	fmt.Println("query: ", query)
-
-// 	nstmt, err := a.db.PrepareNamed(query)
-// 	if err != nil {
-// 		return fmt.Errorf("error::getWhere::%s", err.Error())
-// 	}
-// 	err = nstmt.Get(out, whereMap)
-// 	return err
-// }

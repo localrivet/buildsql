@@ -1,139 +1,102 @@
 package buildsql_test
 
 import (
-	"fmt"
-	"log"
 	"net/url"
-	"strings"
+	"testing"
 
 	"github.com/localrivet/buildsql"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	"github.com/stretchr/testify/assert"
 )
 
-var _ = Describe("Helpers", func() {
-	defer GinkgoRecover()
+type Product struct {
+	ID     int64   `json:"id" db:"id"`         // id
+	Name   string  `json:"name" db:"name"`     // name
+	Slug   string  `json:"slug" db:"slug"`     // slug
+	Sku    string  `json:"sku" db:"sku"`       // sku
+	Amount float64 `json:"amount" db:"amount"` // amount
+}
 
-	type Customer struct {
-		ID        int64  `json:"id" db:"id"`                 // id
-		Email     string `json:"email" db:"email"`           // email
-		FirstName string `json:"first_name" db:"first_name"` // first_name
-		LastName  string `json:"last_name" db:"last_name"`   // last_name
-	}
+type Pricing struct {
+	ID        int64   `json:"id" db:"id"`                 // id
+	ProductID int64   `json:"product_id" db:"product_id"` // product_id
+	Amount    float64 `json:"amount" db:"amount"`         // amount
+}
 
-	expectNilErr := func(err error) {
-		Expect(err).To(BeNil())
-	}
+func TestQueryBuilder(t *testing.T) {
 
-	expectErr := func(err error) {
-		Expect(err).To(Not(BeNil()))
-	}
-
-	Describe("BuildWhere", func() {
-
-		// getFields := func() map[string]string {
-		// 	return map[string]string{
-		// 		"id":     "p",  // product alias
-		// 		"name":   "p",  // product alias
-		// 		"slug":   "p",  // product alias
-		// 		"sku":    "v",  // product alias
-		// 		"amount": "pr", // price alias
-		// 	}
-		// }
-
-		// on := "filter=p-name-Practical Cotton Gloves&filter=v-sku-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
-
-		var builder buildsql.QueryBuilder
-
-		// var removeItemToCartLogic *logic.RemoveItemInCartLogic
-		BeforeEach(func() {
-			builder = buildsql.QueryBuilder{}
-		})
-
-		It("should return valid AllowedFilterFields from a string map", func() {
-			// Expect(addItemToCartLogic).To(Not(BeNil()))
-			builder.AllowedFilterFields = map[string]string{
-				"id":     "p",  // product alias
-				"name":   "p",  // product alias
-				"slug":   "p",  // product alias
-				"sku":    "v",  // product alias
-				"amount": "pr", // price alias
-			}
-
-			// where, err := buildsql.BuildWhere(on)
-			// expectNilErr(err)
-			// fmt.Println("where:", where)
-		})
-
-		It("should correctly parse a param string", func() {
-
-			on := "filter=p-name-eq-Practical Cotton Gloves&filter=v-sku-eq-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
-
-			err := builder.ParseParamString(on)
-			fmt.Println("ERROR:", err)
-			expectNilErr(err)
-
-			Expect(len(builder.Filters)).To(Equal(2))
-			Expect(builder.Filters[0].TableAlias).To(Equal("p"))
-			Expect(builder.Filters[0].FieldName).To(Equal("name"))
-			Expect(builder.Filters[0].Value).To(Equal("Practical Cotton Gloves"))
-
-			Expect(builder.Filters[1].TableAlias).To(Equal("v"))
-			Expect(builder.Filters[1].FieldName).To(Equal("sku"))
-			Expect(builder.Filters[1].Value).To(Equal("practical-cotton-gloves"))
-
-			Expect(len(builder.Sorts)).To(Equal(2))
-			Expect(builder.Sorts[0].TableAlias).To(Equal("p"))
-			Expect(builder.Sorts[0].FieldName).To(Equal("name"))
-
-			Expect(builder.Sorts[1].TableAlias).To(Equal("pr"))
-			Expect(builder.Sorts[1].FieldName).To(Equal("amount"))
-		})
-
-		It("should error on parsing an invalid param string", func() {
-
-			on := "filter=c_name-Practical Cotton Gloves&filter=v-sku_practical-cotton-gloves&sortOn=p_name&sortOn=-pr_amount"
-
-			err := builder.ParseParamString(on)
-			expectErr(err)
-		})
-
-		It("should correctly build ", func() {
-
-			on := "filter=p-name-like-Practical&filter=p-name-nlike-Cotton&filter=v-sku-eq-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
-
-			where, orderBy, namedParamMap, err := builder.Build(on, map[string]interface{}{
-				"c": Customer{}, // customer alias
-			})
-			fmt.Println("")
-			fmt.Println("where:", where)
-			fmt.Println("namedParamMap:", namedParamMap)
-			fmt.Println("orderBy:", orderBy)
-			expectNilErr(err)
-
-		})
-
-		It("should parse raw url ", func() {
-
-			on := "http://example.com/v1/products/0/20?filter=p-name-like-cotton&sortOn=p-id"
-
-			on = strings.Replace(on, "\\u0026", "&", -1)
-
-			decodedValue, err := url.QueryUnescape(on)
-			if err != nil {
-				log.Fatal(err)
-				return
-			}
-			fmt.Println(decodedValue)
-
-			where, orderBy, namedParamMap, err := builder.Build(on, map[string]interface{}{
-				"c": Customer{}, // customer alias
-			})
-			fmt.Println("")
-			fmt.Println("where:", where)
-			fmt.Println("namedParamMap:", namedParamMap)
-			fmt.Println("orderBy:", orderBy)
-			expectNilErr(err)
-		})
+	t.Run("should return valid AllowedFilterFields from a string map", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		builder.AllowedFilterFields = map[string]string{
+			"id":     "p",  // product alias
+			"name":   "p",  // product alias
+			"slug":   "p",  // product alias
+			"sku":    "p",  // product alias
+			"amount": "pr", // price alias
+		}
+		assert.NotNil(t, builder.AllowedFilterFields)
 	})
-})
+
+	t.Run("should correctly parse a param string", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "filter=p-name-eq-Practical Cotton Gloves&filter=p-sku-eq-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
+
+		err := builder.ParseParamString(on)
+		assert.Nil(t, err)
+		assert.Equal(t, 2, len(builder.Filters))
+		assert.Equal(t, "p", builder.Filters[0].TableAlias)
+		assert.Equal(t, "name", builder.Filters[0].FieldName)
+		assert.Equal(t, "Practical Cotton Gloves", builder.Filters[0].Value)
+		assert.Equal(t, "p", builder.Filters[1].TableAlias)
+		assert.Equal(t, "sku", builder.Filters[1].FieldName)
+		assert.Equal(t, "practical-cotton-gloves", builder.Filters[1].Value)
+		assert.Equal(t, 2, len(builder.Sorts))
+		assert.Equal(t, "p", builder.Sorts[0].TableAlias)
+		assert.Equal(t, "name", builder.Sorts[0].FieldName)
+		assert.Equal(t, buildsql.ASC, builder.Sorts[0].Direction)
+		assert.Equal(t, "pr", builder.Sorts[1].TableAlias)
+		assert.Equal(t, "amount", builder.Sorts[1].FieldName)
+		assert.Equal(t, buildsql.DESC, builder.Sorts[1].Direction)
+	})
+
+	t.Run("should error on parsing an invalid param string", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "filter=c_name-Practical Cotton Gloves&filter=v-sku_practical-cotton-gloves&sortOn=p_name&sortOn=-pr_amount"
+
+		err := builder.ParseParamString(on)
+		assert.NotNil(t, err)
+	})
+
+	t.Run("should correctly build query", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "filter=p-name-like-Practical&filter=p-name-nlike-Cotton&filter=p-sku-eq-practical-cotton-gloves&sortOn=p-name&sortOn=-pr-amount"
+
+		where, orderBy, namedParamMap, err := builder.Build(on, map[string]interface{}{
+			"p":  Product{}, // product alias
+			"pr": Pricing{}, // pricing alias
+		})
+		assert.Nil(t, err)
+		assert.Contains(t, where, "p.name LIKE :filter_p_name_0")
+		assert.Contains(t, where, "p.name NOT LIKE :filter_p_name_1")
+		assert.Contains(t, where, "p.sku = :filter_p_sku_0")
+		assert.Equal(t, "ORDER BY p.name ASC, pr.amount DESC", orderBy)
+		assert.Equal(t, "%Practical%", namedParamMap["filter_p_name_0"])
+		assert.Equal(t, "%Cotton%", namedParamMap["filter_p_name_1"])
+		assert.Equal(t, "practical-cotton-gloves", namedParamMap["filter_p_sku_0"])
+	})
+
+	t.Run("should parse raw URL", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "http://example.com/v1/products/0/20?filter=p-name-like-cotton&sortOn=p-id"
+
+		decodedValue, err := url.QueryUnescape(on)
+		assert.Nil(t, err)
+
+		where, orderBy, namedParamMap, err := builder.Build(decodedValue, map[string]interface{}{
+			"p": Product{}, // product alias
+		})
+		assert.Nil(t, err)
+		assert.Contains(t, where, "p.name LIKE :filter_p_name_0")
+		assert.Equal(t, "ORDER BY p.id ASC", orderBy)
+		assert.Equal(t, "%cotton%", namedParamMap["filter_p_name_0"])
+	})
+}

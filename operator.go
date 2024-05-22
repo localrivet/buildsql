@@ -6,12 +6,21 @@ const (
 	Equal              Operator = "eq"
 	NotEqual           Operator = "neq"
 	Like               Operator = "like"
+	ILike              Operator = "ilike"
+	OrLike             Operator = "orlike"
+	OrILike            Operator = "orilike"
 	NotLike            Operator = "nlike"
+	NotILike           Operator = "nilike"
 	LessThan           Operator = "lt"
 	LessThanOrEqual    Operator = "lte"
 	GreaterThan        Operator = "gt"
 	GreaterThanOrEqual Operator = "gte"
-	Betweeen           Operator = "btw"
+	Between            Operator = "btw"
+	Or                 Operator = "or"
+	In                 Operator = "in"
+	NotIn              Operator = "notin"
+	IsNull             Operator = "isnull"
+	IsNotNull          Operator = "isnotnull"
 )
 
 func (o Operator) Convert() string {
@@ -22,8 +31,16 @@ func (o Operator) Convert() string {
 		return "!="
 	case Like:
 		return "LIKE"
+	case ILike:
+		return "ILIKE"
+	case OrLike:
+		return "LIKE"
+	case OrILike:
+		return "ILIKE"
 	case NotLike:
 		return "NOT LIKE"
+	case NotILike:
+		return "NOT ILIKE"
 	case LessThan:
 		return "<"
 	case LessThanOrEqual:
@@ -32,12 +49,20 @@ func (o Operator) Convert() string {
 		return ">"
 	case GreaterThanOrEqual:
 		return ">="
-	case Betweeen:
+	case Between:
 		return "BETWEEN"
+	case In:
+		return "IN"
+	case NotIn:
+		return "NOT IN"
+	case IsNull:
+		return "IS NULL"
+	case IsNotNull:
+		return "IS NOT NULL"
 	}
 	return ""
 }
 
-func (o Operator) isLike() bool {
-	return o == Like || o == NotLike
+func (o Operator) IsLike() bool {
+	return (o == Like || o == OrLike || o == ILike || o == OrILike) || (o == NotLike || o == NotILike)
 }
