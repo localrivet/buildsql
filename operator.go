@@ -66,3 +66,24 @@ func (o Operator) Convert() string {
 func (o Operator) IsLike() bool {
 	return (o == Like || o == OrLike || o == ILike || o == OrILike) || (o == NotLike || o == NotILike)
 }
+
+func (o Operator) IsBetween() bool {
+	return o == Between
+}
+
+func (o Operator) IsIn() bool {
+	return o == In
+}
+
+func (o Operator) IsNotIn() bool {
+	return o == NotIn
+}
+
+func (o Operator) IsNull() bool {
+	return o == IsNull || o == IsNotNull
+}
+
+// to string
+func (o Operator) String() string {
+	return string(o)
+}

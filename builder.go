@@ -156,10 +156,16 @@ func (b *QueryBuilder) ParseParamString(paramString string) error {
 			// Handling different operator scenarios
 			operatorPart := parts[2]
 			var valuePart string
+
 			if len(parts) > 3 {
 				// Assuming the operator is one of eq, lt, gt, etc., and the next part is the value
 				filterField.Operator = Operator(operatorPart)
 				valuePart = parts[3]
+
+				if filterField.Operator.IsBetween() || filterField.Operator.IsIn() || filterField.Operator.IsNotIn() {
+					sp := strings.Split(valuePart, ",")
+					filterField.Values = sp
+				}
 			} else {
 				// Handling scenarios where the operator might include the value (e.g., isnull, isnotnull)
 				if operatorPart == "isnull" || operatorPart == "isnotnull" {
@@ -257,9 +263,13 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 			fields, ok := fieldsByTableAlias[tag]
 			if ok {
 				for i, field := range fields {
+
 					if field.TableAlias == tableAlias {
 						switch field.Operator {
 						case Between:
+							// fmt.Println("field", field, "tag", tag, "tableAlias", tableAlias)
+							// fmt.Println("Values", field.Values)
+
 							if len(field.Values) == 2 {
 								namedParam0 := fmt.Sprintf("filter_%s_%s_%d_0", field.TableAlias, field.FieldName, i)
 								namedParamMap[namedParam0] = field.Values[0]

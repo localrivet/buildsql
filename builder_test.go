@@ -100,3 +100,38 @@ func TestQueryBuilder(t *testing.T) {
 		assert.Equal(t, "%cotton%", namedParamMap["filter_p_name_0"])
 	})
 }
+
+func TestQueryBuilderBetween(t *testing.T) {
+	t.Run("should correctly parse a param string with between", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "filter=r-user_id-eq-u07b4b9def3d3c0&filter=r-account_id-eq-a091321bd573491&filter=r-created_at-btw-2024-06-12 00:00:00,2024-06-12 23:59:59&sortOn=-r-created_at"
+
+		err := builder.ParseParamString(on)
+		assert.Nil(t, err)
+
+		// Assert Filters
+		assert.Equal(t, 3, len(builder.Filters))
+		assert.Equal(t, "r", builder.Filters[0].TableAlias)
+		assert.Equal(t, "user_id", builder.Filters[0].FieldName)
+		assert.Equal(t, "eq", builder.Filters[0].Operator.String())
+		assert.Equal(t, "u07b4b9def3d3c0", builder.Filters[0].Value)
+
+		assert.Equal(t, "r", builder.Filters[1].TableAlias)
+		assert.Equal(t, "account_id", builder.Filters[1].FieldName)
+		assert.Equal(t, "eq", builder.Filters[1].Operator.String())
+		assert.Equal(t, "a091321bd573491", builder.Filters[1].Value)
+
+		assert.Equal(t, "r", builder.Filters[2].TableAlias)
+		assert.Equal(t, "created_at", builder.Filters[2].FieldName)
+		assert.Equal(t, "btw", builder.Filters[2].Operator.String())
+		assert.Equal(t, []string{"2024-06-12 00:00:00", "2024-06-12 23:59:59"}, builder.Filters[2].Values)
+
+		// Assert Sorts
+		assert.Equal(t, 1, len(builder.Sorts))
+		assert.Equal(t, "r", builder.Sorts[0].TableAlias)
+		assert.Equal(t, "created_at", builder.Sorts[0].FieldName)
+		assert.Equal(t, buildsql.DESC, builder.Sorts[0].Direction)
+
+		// fmt.Println("builder", builder)
+	})
+}
