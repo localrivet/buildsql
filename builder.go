@@ -236,7 +236,7 @@ func (b *QueryBuilder) ParseParamString(paramString string) error {
 func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{}) (where string, orderBy string, namedParamMap map[string]interface{}, err error) {
 	namedParamMap = make(map[string]interface{})
 	wheres := make(map[string][]Where)
-	sb := []string{}
+	sb := []string{} // sort by
 
 	if err := b.ParseParamString(paramString); err != nil {
 		return "", "", nil, err
@@ -306,6 +306,18 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 								SqlString:    sqlString,
 							})
 
+						case Or, OrLike, OrILike:
+							namedParam := fmt.Sprintf("filter_%s_%s_%d", field.TableAlias, field.FieldName, i)
+							namedParamMap[namedParam] = field.Value
+							sqlString := fmt.Sprintf("%s.%s %s :%s", field.TableAlias, field.FieldName, field.Operator.Convert(), namedParam)
+							combined := fmt.Sprintf("%s.%s", tableAlias, field.FieldName)
+							wheres[combined] = append(wheres[combined], Where{
+								CombinedName: combined,
+								SqlString:    sqlString,
+								Named:        namedParam,
+								Operator:     field.Operator,
+							})
+
 						default:
 							namedParam := fmt.Sprintf("filter_%s_%s_%d", field.TableAlias, field.FieldName, i)
 							namedParamMap[namedParam] = field.Value
@@ -339,34 +351,46 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 		orderBy = fmt.Sprintf("ORDER BY %s", orderBy)
 	}
 
+	fmt.Println("where", where)
+
 	return where, orderBy, namedParamMap, err
 }
 
 func (b *QueryBuilder) AssembledWheres(whereMap map[string][]Where) string {
 	where := []string{}
-	orWhere := []string{}
-	for _, ws := range whereMap {
-		if len(ws) > 1 {
-			orGroup := []string{}
-			for _, w := range ws {
-				orGroup = append(orGroup, w.SqlString)
-			}
-			where = append(where, "("+strings.Join(orGroup, " OR ")+")")
-		} else {
+	orLikeWheres := []string{}
 
-			// fmt.Println("ws", ws[0])
-			if ws[0].Operator == Or || ws[0].Operator == OrLike {
-				orWhere = append(orWhere, ws[0].SqlString)
+	for _, wheres := range whereMap {
+		if len(wheres) > 1 {
+			orGroup := []string{}
+			for _, w := range wheres {
+				if w.Operator == OrLike || w.Operator == OrILike {
+					orLikeWheres = append(orLikeWheres, w.SqlString)
+				} else {
+					orGroup = append(orGroup, w.SqlString)
+				}
+			}
+			if len(orGroup) > 0 {
+				where = append(where, "("+strings.Join(orGroup, " OR ")+")")
+			}
+		} else if len(wheres) == 1 {
+			if wheres[0].Operator == OrLike || wheres[0].Operator == OrILike {
+				orLikeWheres = append(orLikeWheres, wheres[0].SqlString)
 			} else {
-				where = append(where, ws[0].SqlString)
+				where = append(where, wheres[0].SqlString)
 			}
 		}
 	}
 
 	out := strings.Join(where, " AND ")
-	if len(orWhere) > 0 {
-		out = out + "(" + strings.Join(orWhere, " OR ") + ")"
+
+	if len(orLikeWheres) > 0 {
+		if out != "" {
+			out += " AND "
+		}
+		out += "(" + strings.Join(orLikeWheres, " OR ") + ")"
 	}
+
 	if out != "" {
 		return fmt.Sprintf(" AND %s", out)
 	}

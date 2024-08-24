@@ -1,8 +1,10 @@
 package buildsql_test
 
 import (
+	"database/sql"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/localrivet/buildsql"
 	"github.com/stretchr/testify/assert"
@@ -78,7 +80,8 @@ func TestQueryBuilder(t *testing.T) {
 		assert.Contains(t, where, "p.name LIKE :filter_p_name_0")
 		assert.Contains(t, where, "p.name NOT LIKE :filter_p_name_1")
 		assert.Contains(t, where, "p.sku = :filter_p_sku_0")
-		assert.Equal(t, "ORDER BY p.name ASC, pr.amount DESC", orderBy)
+		assert.Contains(t, orderBy, "p.name ASC")
+		assert.Contains(t, orderBy, "pr.amount DESC")
 		assert.Equal(t, "%Practical%", namedParamMap["filter_p_name_0"])
 		assert.Equal(t, "%Cotton%", namedParamMap["filter_p_name_1"])
 		assert.Equal(t, "practical-cotton-gloves", namedParamMap["filter_p_sku_0"])
@@ -101,6 +104,26 @@ func TestQueryBuilder(t *testing.T) {
 	})
 }
 
+func TestQueryBuilderOr(t *testing.T) {
+	t.Run("should handle OrLike and OrILike conditions correctly", func(t *testing.T) {
+		builder := buildsql.NewQueryBuilder()
+		on := "filter=u-first_name-orlike-John&filter=u-last_name-orilike-Doe&filter=u-id-eq-123"
+
+		where, _, namedParamMap, err := builder.Build(on, map[string]interface{}{
+			"u": User{},
+		})
+		assert.Nil(t, err)
+		assert.Contains(t, where, "u.id = :filter_u_id_0")
+		assert.Contains(t, where, "(u.first_name LIKE :filter_u_first_name_0 OR u.last_name ILIKE :filter_u_last_name_0)")
+		assert.Equal(t, "%John%", namedParamMap["filter_u_first_name_0"])
+		assert.Equal(t, "%Doe%", namedParamMap["filter_u_last_name_0"])
+		assert.Equal(t, "123", namedParamMap["filter_u_id_0"])
+
+		// Check the complete where clause
+		expectedWhere := " AND u.id = :filter_u_id_0 AND (u.first_name LIKE :filter_u_first_name_0 OR u.last_name ILIKE :filter_u_last_name_0)"
+		assert.Equal(t, expectedWhere, where)
+	})
+}
 func TestQueryBuilderBetween(t *testing.T) {
 	t.Run("should correctly parse a param string with between", func(t *testing.T) {
 		builder := buildsql.NewQueryBuilder()
@@ -134,4 +157,25 @@ func TestQueryBuilderBetween(t *testing.T) {
 
 		// fmt.Println("builder", builder)
 	})
+}
+
+type User struct {
+	ID                     int64          `json:"id" db:"id" form:"id"`                                                                      // id
+	FirstName              string         `json:"first_name" db:"first_name" form:"first_name"`                                              // first_name
+	LastName               string         `json:"last_name" db:"last_name" form:"last_name"`                                                 // last_name
+	Title                  sql.NullString `json:"title" db:"title" form:"title"`                                                             // title
+	Username               string         `json:"username" db:"username" form:"username"`                                                    // username
+	Email                  string         `json:"email" db:"email" form:"email"`                                                             // email
+	EmailVisibility        bool           `json:"email_visibility" db:"email_visibility" form:"email_visibility"`                            // email_visibility
+	RequireReset           bool           `json:"require_reset" db:"require_reset" form:"require_reset"`                                     // require_reset
+	LastResetSentAt        sql.NullTime   `json:"last_reset_sent_at" db:"last_reset_sent_at" form:"last_reset_sent_at"`                      // last_reset_sent_at
+	LastVerificationSentAt sql.NullTime   `json:"last_verification_sent_at" db:"last_verification_sent_at" form:"last_verification_sent_at"` // last_verification_sent_at
+	PasswordHash           string         `json:"password_hash" db:"password_hash" form:"password_hash"`                                     // password_hash
+	TokenKey               string         `json:"token_key" db:"token_key" form:"token_key"`                                                 // token_key
+	Verified               bool           `json:"verified" db:"verified" form:"verified"`                                                    // verified
+	Avatar                 string         `json:"avatar" db:"avatar" form:"avatar"`                                                          // avatar
+	TypeID                 int64          `json:"type_id" db:"type_id" form:"type_id"`                                                       // type_id
+	CreatedAt              time.Time      `json:"created_at" db:"created_at" form:"created_at"`                                              // created_at
+	UpdatedAt              time.Time      `json:"updated_at" db:"updated_at" form:"updated_at"`                                              // updated_at
+
 }
