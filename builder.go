@@ -351,8 +351,6 @@ func (b *QueryBuilder) Build(paramString string, allowed map[string]interface{})
 		orderBy = fmt.Sprintf("ORDER BY %s", orderBy)
 	}
 
-	fmt.Println("where", where)
-
 	return where, orderBy, namedParamMap, err
 }
 
