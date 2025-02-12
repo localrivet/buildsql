@@ -23,7 +23,7 @@ func NewFilterBuilder() *FilterBuilder {
 
 // AddFilter adds a filter to the filter builder
 func (fb *FilterBuilder) AddFilter(prefix, fieldName string, operator Operator, value any) *FilterBuilder {
-	filterKey := fmt.Sprintf("%s-%s-%s", prefix, fieldName, operator)
+	filterKey := fmt.Sprintf("%s-%s-%v", prefix, fieldName, operator)
 	if fb.isValidFilter(filterKey) {
 		fb.filters[filterKey] = value
 		fb.prefixes = append(fb.prefixes, prefix)
@@ -63,7 +63,14 @@ func (fb *FilterBuilder) String() string {
 
 	// Add filters to the query string
 	for field, value := range fb.filters {
-		queryString.WriteString(fmt.Sprintf("filter=%s-%s&", field, value))
+		// Handle boolean values specifically
+		var strValue string
+		if boolVal, ok := value.(bool); ok {
+			strValue = fmt.Sprintf("%v", boolVal)
+		} else {
+			strValue = fmt.Sprintf("%s", value)
+		}
+		queryString.WriteString(fmt.Sprintf("filter=%s-%s&", field, strValue))
 	}
 
 	// Add sorts to the query string
