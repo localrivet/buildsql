@@ -63,4 +63,12 @@ func TestFilterBuilder(t *testing.T) {
 		fmt.Println("fb.String()", fb.String())
 		assert.Equal(t, expected, fb.String())
 	})
+
+	t.Run("AddFilter should handle boolean values", func(t *testing.T) {
+		fb := buildsql.NewFilterBuilder()
+		fb.AddFilter("r", "is_active", buildsql.Equal, true)
+		fb.AddFilter("r", "is_deleted", buildsql.Equal, false)
+		expected := "filter=r-is_active-eq-true&filter=r-is_deleted-eq-false"
+		assert.Equal(t, expected, fb.String())
+	})
 }

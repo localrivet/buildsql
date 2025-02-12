@@ -8,7 +8,7 @@ import (
 // FilterBuilder struct
 type FilterBuilder struct {
 	prefixes []string
-	filters  map[string]string
+	filters  map[string]any
 	sorts    []string
 }
 
@@ -16,13 +16,13 @@ type FilterBuilder struct {
 func NewFilterBuilder() *FilterBuilder {
 	return &FilterBuilder{
 		prefixes: make([]string, 0),
-		filters:  make(map[string]string),
+		filters:  make(map[string]any),
 		sorts:    []string{},
 	}
 }
 
 // AddFilter adds a filter to the filter builder
-func (fb *FilterBuilder) AddFilter(prefix, fieldName string, operator Operator, value string) *FilterBuilder {
+func (fb *FilterBuilder) AddFilter(prefix, fieldName string, operator Operator, value any) *FilterBuilder {
 	filterKey := fmt.Sprintf("%s-%s-%s", prefix, fieldName, operator)
 	if fb.isValidFilter(filterKey) {
 		fb.filters[filterKey] = value
